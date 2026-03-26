@@ -1,5 +1,6 @@
 import asyncio
 import os
+import random
 import requests
 import feedparser
 from telegram import Bot
@@ -9,17 +10,51 @@ from datetime import datetime, date
 TOKEN = os.environ.get("TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 
-def buscar_noticias():
-    """Busca headlines financeiras via RSS de portais brasileiros."""
-    noticias = []
+# Pool completo de ativos (OTC)
+ATIVOS_POOL = [
+    # Forex
+    "EUR/USD", "GBP/USD", "EUR/GBP", "EUR/JPY", "GBP/JPY", "USD/JPY",
+    "AUD/CAD", "GBP/CAD", "EUR/CAD", "EUR/NZD", "GBP/NZD", "GBP/AUD",
+    "AUD/USD", "AUD/JPY", "AUD/CHF", "AUD/NZD", "NZD/JPY", "NZD/CAD",
+    "USD/CAD", "USD/CHF", "CAD/JPY", "CAD/CHF", "GBP/CHF", "EUR/CHF",
+    "USD/SGD", "USD/HKD", "USD/TRY", "USD/ZAR", "USD/NOK", "USD/SEK",
+    "USD/MXN", "USD/BRL", "USD/COP", "PEN/USD", "EUR/THB", "USD/THB", "JPY/THB",
+    # Commodities
+    "XAUUSD - Ouro", "XAGUSD - Prata", "UKOUSD - Petroleo Brent", "USOUSD - Petroleo WTI",
+    # Indices
+    "US 100", "US 500", "US 30", "US2000", "UK 100", "JP 225",
+    "AUS 200", "FR 40", "SP 35", "GER30/UK100", "US100/JP225",
+    # Acoes
+    "Tesla", "Amazon", "Apple", "Google", "Meta", "Microsoft",
+    "Goldman Sachs", "JPMorgan Chase", "Morgan Stanley", "Alibaba",
+    "Baidu", "Nike", "Intel", "Coca-Cola", "McDonald's", "AIG",
+    "Meta/Alphabet", "Amazon/Alibaba", "Amazon/Ebay",
+    # Crypto
+    "ETH/USD", "SOL/USD", "BTC/USD", "Ripple XRP", "Cardano ADA",
+    "Litecoin", "Bitcoin Cash", "Chainlink", "Polkadot", "Cosmos",
+    "Arbitrum", "Polygon", "Sui", "HBAR", "TON", "Render", "FET",
+    "ICP", "Decentraland", "Immutable", "IOTA", "TAO", "Worldcoin",
+    "Stacks", "Jupiter", "Raydium", "Sei", "ORDI", "DYDX", "Celestia",
+    "Sandbox", "Graph", "TRON/USD", "SHIB/USD", "Pepe", "Floki",
+    "Dogwifhat", "Pudgy Penguins", "1000Sats", "Pyth", "Ronin",
+    "Vaulta", "TRUMP Coin", "MELANIA Coin", "Fartcoin",
+]
 
+
+def gerar_indicacoes(n=5):
+    semente = date.today().toordinal()
+    rng = random.Random(semente)
+    return rng.sample(ATIVOS_POOL, n)
+
+
+def buscar_noticias():
+    noticias = []
     feeds = [
         ("https://www.infomoney.com.br/feed/", "InfoMoney"),
         ("https://g1.globo.com/rss/g1/economia/", "G1 Economia"),
         ("https://exame.com/invest/feed/", "Exame Invest"),
-        ("https://valor.globo.com/rss/ultimas-noticias/", "Valor Econômico"),
+        ("https://valor.globo.com/rss/ultimas-noticias/", "Valor Economico"),
     ]
-
     for url, fonte in feeds:
         if len(noticias) >= 5:
             break
@@ -29,13 +64,12 @@ def buscar_noticias():
                 titulo = entry.get("title", "").strip()
                 titulo = titulo.split(" - ")[0].split(" | ")[0].strip()
                 if titulo and len(titulo) > 15 and len(noticias) < 5:
-                    noticias.append(f"\U0001f4f0 {titulo} ({fonte})")
+                    noticias.append(f"U0001f4f0 {titulo} ({fonte})")
         except Exception:
             pass
-
     if noticias:
         return "\n".join(noticias[:5])
-    return "\U0001f4f0 Sem notícias disponíveis no momento."
+    return "U0001f4f0 Sem noticias disponiveis no momento."
 
 
 def buscar_crypto():
@@ -52,12 +86,12 @@ def buscar_crypto():
             if key in data:
                 preco = data[key]["usd"]
                 variacao = data[key].get("usd_24h_change", 0)
-                emoji = "\U0001f7e2" if variacao >= 0 else "\U0001f534"
+                emoji = "U0001f7e2" if variacao >= 0 else "U0001f534"
                 sinal = "+" if variacao >= 0 else ""
                 linhas.append(f"{emoji} {simbolo}: US$ {preco:,.0f} ({sinal}{variacao:.2f}%)")
-        return "\n".join(linhas) if linhas else "\u20bf Cotações crypto indisponíveis."
+        return "\n".join(linhas) if linhas else "₿ Cotacoes crypto indisponiveis."
     except Exception:
-        return "\u20bf Cotações crypto indisponíveis no momento."
+        return "₿ Cotacoes crypto indisponiveis no momento."
 
 
 def buscar_forex():
@@ -69,49 +103,72 @@ def buscar_forex():
         eur = rates.get("EUR")
         gbp = rates.get("GBP")
         linhas = []
-        if brl: linhas.append(f"\U0001f4b5 USD/BRL: R$ {brl:.2f}")
-        if eur: linhas.append(f"\U0001f1ea\U0001f1fa EUR/USD: {1/eur:.4f}")
-        if gbp: linhas.append(f"\U0001f1ec\U0001f1e7 GBP/USD: {1/gbp:.4f}")
-        return "\n".join(linhas) if linhas else "\U0001f4b1 Cotações forex indisponíveis."
+        if brl: linhas.append(f"U0001f4b5 USD/BRL: R$ {brl:.2f}")
+        if eur: linhas.append(f"U0001f1eaU0001f1fa EUR/USD: {1/eur:.4f}")
+        if gbp: linhas.append(f"U0001f1ecU0001f1e7 GBP/USD: {1/gbp:.4f}")
+        return "\n".join(linhas) if linhas else "U0001f4b1 Cotacoes forex indisponiveis."
     except Exception:
-        return "\U0001f4b1 Cotações forex indisponíveis no momento."
+        return "U0001f4b1 Cotacoes forex indisponiveis no momento."
 
 
 async def enviar_resumo():
     bot = Bot(token=TOKEN)
     data_hoje = datetime.now().strftime("%d/%m/%Y")
-    dia_semana = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"][datetime.now().weekday()]
+    dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
     noticias = buscar_noticias()
     crypto = buscar_crypto()
     forex = buscar_forex()
     mensagem = f"""
-\U0001f4e2 *Bom dia, traders!*
-{dia_semana}, *{data_hoje}* — Resumo do mercado
+U0001f4e2 *Bom dia, traders!*
+{dia_semana}, *{data_hoje}* - Resumo do mercado
 ━━━━━━━━━━━━━━━━━
-\U0001f4f0 *Notícias do Dia*
+U0001f4f0 *Noticias do Dia*
 {noticias}
 ━━━━━━━━━━━━━━━━━
-\u20bf *Crypto — Agora*
+₿ *Crypto - Agora*
 {crypto}
 ━━━━━━━━━━━━━━━━━
-\U0001f4b1 *Forex — Cotações*
+U0001f4b1 *Forex - Cotacoes*
 {forex}
 ━━━━━━━━━━━━━━━━━
-⚠️ *Gestão de Risco*
-➡️ Opere com no máximo 2% da banca por entrada
-➡️ Respeite suporte e resistência
-➡️ Dia volátil? Reduza o lote e preserve o seu capital
-_Boas operações! Disciplina acima de tudo._ \U0001f3af
+⚠️ *Gestao de Risco*
+➡️ Opere com no maximo 2% da banca por entrada
+➡️ Respeite suporte e resistencia
+➡️ Dia volatil? Reduza o lote e preserve o seu capital
+_Boas operacoes! Disciplina acima de tudo._ U0001f3af
 """
     await bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
-    print(f"\u2705 Mensagem enviada: {datetime.now()}")
+    print(f"✅ Resumo enviado: {datetime.now()}")
+
+
+async def enviar_indicacoes():
+    bot = Bot(token=TOKEN)
+    data_hoje = datetime.now().strftime("%d/%m/%Y")
+    dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
+    indicacoes = gerar_indicacoes(n=5)
+    lista = "\n".join(f"U0001f539 {ativo} (OTC)" for ativo in indicacoes)
+    mensagem = f"""
+U0001f916 *Indicacoes de Ativos - I.A.*
+{dia_semana}, *{data_hoje}* - Selecao do Dia
+━━━━━━━━━━━━━━━━━
+U0001f4ca Melhores ativos selecionados para hoje no Blitz:
+{lista}
+━━━━━━━━━━━━━━━━━
+⚙️ *Configuracao Sugerida*
+➡️ Expiracao: de acordo com a I.A U0001f916
+➡️ Gestao: max. 2% a 5% do capital por entrada
+➡️ Utilize a planilha de gerenciamento caso precise
+"""
+    await bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+    print(f"✅ Indicacoes enviadas: {datetime.now()}")
 
 
 async def main():
     scheduler = AsyncIOScheduler(timezone="America/Sao_Paulo")
-    scheduler.add_job(enviar_resumo, "cron", hour=9, minute=0)
+    scheduler.add_job(enviar_resumo,     "cron", hour=9,  minute=0)
+    scheduler.add_job(enviar_indicacoes, "cron", hour=12, minute=0)
     scheduler.start()
-    print("\U0001f916 Bot rodando... envio diário às 9h Brasília")
+    print("U0001f916 Bot rodando... 9h resumo | 12h indicacoes")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
