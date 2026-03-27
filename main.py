@@ -64,12 +64,12 @@ def buscar_noticias():
                 titulo = entry.get("title", "").strip()
                 titulo = titulo.split(" - ")[0].split(" | ")[0].strip()
                 if titulo and len(titulo) > 15 and len(noticias) < 5:
-                    noticias.append(f"U0001f4f0 {titulo} ({fonte})")
+                    noticias.append(f"📰 {titulo} ({fonte})")
         except Exception:
             pass
     if noticias:
         return "\n".join(noticias[:5])
-    return "U0001f4f0 Sem noticias disponiveis no momento."
+    return "📰 Sem noticias disponiveis no momento."
 
 
 def buscar_crypto():
@@ -86,7 +86,7 @@ def buscar_crypto():
             if key in data:
                 preco = data[key]["usd"]
                 variacao = data[key].get("usd_24h_change", 0)
-                emoji = "U0001f7e2" if variacao >= 0 else "U0001f534"
+                emoji = "🟢" if variacao >= 0 else "🔴"
                 sinal = "+" if variacao >= 0 else ""
                 linhas.append(f"{emoji} {simbolo}: US$ {preco:,.0f} ({sinal}{variacao:.2f}%)")
         return "\n".join(linhas) if linhas else "₿ Cotacoes crypto indisponiveis."
@@ -103,12 +103,12 @@ def buscar_forex():
         eur = rates.get("EUR")
         gbp = rates.get("GBP")
         linhas = []
-        if brl: linhas.append(f"U0001f4b5 USD/BRL: R$ {brl:.2f}")
-        if eur: linhas.append(f"U0001f1eaU0001f1fa EUR/USD: {1/eur:.4f}")
-        if gbp: linhas.append(f"U0001f1ecU0001f1e7 GBP/USD: {1/gbp:.4f}")
-        return "\n".join(linhas) if linhas else "U0001f4b1 Cotacoes forex indisponiveis."
+        if brl: linhas.append(f"💵 USD/BRL: R$ {brl:.2f}")
+        if eur: linhas.append(f"🇪🇺 EUR/USD: {1/eur:.4f}")
+        if gbp: linhas.append(f"🇬🇧 GBP/USD: {1/gbp:.4f}")
+        return "\n".join(linhas) if linhas else "💱 Cotacoes forex indisponiveis."
     except Exception:
-        return "U0001f4b1 Cotacoes forex indisponiveis no momento."
+        return "💱 Cotacoes forex indisponiveis no momento."
 
 
 async def enviar_resumo():
@@ -119,23 +119,23 @@ async def enviar_resumo():
     crypto = buscar_crypto()
     forex = buscar_forex()
     mensagem = f"""
-U0001f4e2 *Bom dia, traders!*
+📢 *Bom dia, traders!*
 {dia_semana}, *{data_hoje}* - Resumo do mercado
 ━━━━━━━━━━━━━━━━━
-U0001f4f0 *Noticias do Dia*
+📰 *Noticias do Dia*
 {noticias}
 ━━━━━━━━━━━━━━━━━
 ₿ *Crypto - Agora*
 {crypto}
 ━━━━━━━━━━━━━━━━━
-U0001f4b1 *Forex - Cotacoes*
+💱 *Forex - Cotacoes*
 {forex}
 ━━━━━━━━━━━━━━━━━
 ⚠️ *Gestao de Risco*
 ➡️ Opere com no maximo 2% da banca por entrada
 ➡️ Respeite suporte e resistencia
 ➡️ Dia volatil? Reduza o lote e preserve o seu capital
-_Boas operacoes! Disciplina acima de tudo._ U0001f3af
+_Boas operacoes! Disciplina acima de tudo._ 🎯
 """
     await bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
     print(f"✅ Resumo enviado: {datetime.now()}")
@@ -146,16 +146,16 @@ async def enviar_indicacoes():
     data_hoje = datetime.now().strftime("%d/%m/%Y")
     dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
     indicacoes = gerar_indicacoes(n=5)
-    lista = "\n".join(f"U0001f539 {ativo} (OTC)" for ativo in indicacoes)
+    lista = "\n".join(f"🔹 {ativo} (OTC)" for ativo in indicacoes)
     mensagem = f"""
-U0001f916 *Indicacoes de Ativos - I.A.*
+🤖 *Indicacoes de Ativos - I.A.*
 {dia_semana}, *{data_hoje}* - Selecao do Dia
 ━━━━━━━━━━━━━━━━━
-U0001f4ca Melhores ativos selecionados para hoje no Blitz:
+📊 Melhores ativos selecionados para hoje no Blitz:
 {lista}
 ━━━━━━━━━━━━━━━━━
 ⚙️ *Configuracao Sugerida*
-➡️ Expiracao: de acordo com a I.A U0001f916
+➡️ Expiracao: de acordo com a I.A 🤖
 ➡️ Gestao: max. 2% a 5% do capital por entrada
 ➡️ Utilize a planilha de gerenciamento caso precise
 """
@@ -168,7 +168,7 @@ async def main():
     scheduler.add_job(enviar_resumo,     "cron", hour=9,  minute=0)
     scheduler.add_job(enviar_indicacoes, "cron", hour=12, minute=0)
     scheduler.start()
-    print("U0001f916 Bot rodando... 9h resumo | 12h indicacoes")
+    print("🤖 Bot rodando... 9h resumo | 12h indicacoes")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
