@@ -52,6 +52,22 @@ BANDEIRAS = {
 IMPACTO_EMOJI = {"high": "🔴", "medium": "🟡", "low": "⚪"}
 IMPACTO_LABEL = {"high": "Alto", "medium": "Medio", "low": "Baixo"}
 
+# Pares/ativos mais impactados por pais
+IMPACTOS_PAIS = {
+    "US": "EUR/USD · GBP/USD · USD/JPY · Ouro · US 100 · US 500",
+    "EU": "EUR/USD · EUR/GBP · EUR/JPY · EUR/CHF",
+    "GB": "GBP/USD · EUR/GBP · GBP/JPY · GBP/CHF",
+    "JP": "USD/JPY · EUR/JPY · GBP/JPY · AUD/JPY",
+    "CA": "USD/CAD · CAD/JPY · GBP/CAD · EUR/CAD",
+    "AU": "AUD/USD · AUD/JPY · AUD/NZD · AUD/CHF",
+    "NZ": "NZD/USD · NZD/JPY · NZD/CAD · AUD/NZD",
+    "CH": "USD/CHF · EUR/CHF · GBP/CHF · AUD/CHF",
+    "CN": "AUD/USD · NZD/USD · USD/JPY",
+    "DE": "EUR/USD · EUR/GBP · EUR/JPY",
+    "FR": "EUR/USD · EUR/GBP · EUR/JPY",
+    "BR": "USD/BRL",
+}
+
 
 def gerar_indicacoes(n=5):
     semente = date.today().toordinal()
@@ -73,7 +89,6 @@ def buscar_calendario_economico():
         if not eventos:
             return "📭 Nenhum evento economico relevante encontrado para hoje."
 
-        # Filtrar apenas alto e medio impacto e ordenar por hora
         eventos = [e for e in eventos if e.get("impact") in ("high", "medium")]
         eventos = sorted(eventos, key=lambda x: x.get("time", ""))
 
@@ -89,7 +104,6 @@ def buscar_calendario_economico():
             prev    = ev.get("prev", "")
             est     = ev.get("estimate", "")
 
-            # Formatar hora
             try:
                 hora_fmt = datetime.strptime(horario, "%Y-%m-%d %H:%M:%S").strftime("%H:%M")
             except Exception:
@@ -103,6 +117,9 @@ def buscar_calendario_economico():
                 linha += f" | Est: {est}"
             if prev:
                 linha += f" | Ant: {prev}"
+            pares = IMPACTOS_PAIS.get(pais, "")
+            if pares:
+                linha += f"\n   📌 {pares}"
             linhas.append(linha)
 
         return "\n".join(linhas)
