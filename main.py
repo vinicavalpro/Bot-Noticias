@@ -7,8 +7,10 @@ from telegram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, date
 
-TOKEN = os.environ.get("TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
+TOKEN              = os.environ.get("TOKEN")
+CHAT_ID            = os.environ.get("CHAT_ID")
+CALENDAR_CHAT_ID   = os.environ.get("CALENDAR_CHAT_ID")
+FINNHUB_KEY        = os.environ.get("FINNHUB_KEY")
 
 # Pool completo de ativos (OTC)
 ATIVOS_POOL = [
@@ -40,11 +42,73 @@ ATIVOS_POOL = [
     "Vaulta", "TRUMP Coin", "MELANIA Coin", "Fartcoin",
 ]
 
+# Bandeiras por pais
+BANDEIRAS = {
+    "US": "🇺🇸", "EU": "🇪🇺", "GB": "🇬🇧", "JP": "🇯🇵",
+    "CN": "🇨🇳", "DE": "🇩🇪", "FR": "🇫🇷", "CA": "🇨🇦",
+    "AU": "🇦🇺", "CH": "🇨🇭", "NZ": "🇳🇿", "BR": "🇧🇷",
+}
+
+IMPACTO_EMOJI = {"high": "🔴", "medium": "🟡", "low": "⚪"}
+IMPACTO_LABEL = {"high": "Alto", "medium": "Medio", "low": "Baixo"}
+
 
 def gerar_indicacoes(n=5):
     semente = date.today().toordinal()
     rng = random.Random(semente)
     return rng.sample(ATIVOS_POOL, n)
+
+
+def buscar_calendario_economico():
+    """Busca eventos economicos do dia via Finnhub."""
+    try:
+        hoje = date.today().strftime("%Y-%m-%d")
+        url = (
+            f"https://finnhub.io/api/v1/calendar/economic"
+            f"?from={hoje}&to={hoje}&token={FINNHUB_KEY}"
+        )
+        data = requests.get(url, timeout=10).json()
+        eventos = data.get("economicCalendar", [])
+
+        if not eventos:
+            return "📭 Nenhum evento economico relevante encontrado para hoje."
+
+        # Filtrar apenas alto e medio impacto e ordenar por hora
+        eventos = [e for e in eventos if e.get("impact") in ("high", "medium")]
+        eventos = sorted(eventos, key=lambda x: x.get("time", ""))
+
+        if not eventos:
+            return "📭 Sem eventos de alto ou medio impacto hoje."
+
+        linhas = []
+        for ev in eventos[:10]:
+            pais    = ev.get("country", "")
+            evento  = ev.get("event", "Evento")
+            impacto = ev.get("impact", "low")
+            horario = ev.get("time", "")
+            prev    = ev.get("prev", "")
+            est     = ev.get("estimate", "")
+
+            # Formatar hora
+            try:
+                hora_fmt = datetime.strptime(horario, "%Y-%m-%d %H:%M:%S").strftime("%H:%M")
+            except Exception:
+                hora_fmt = "--:--"
+
+            bandeira = BANDEIRAS.get(pais, "🌐")
+            emoji    = IMPACTO_EMOJI.get(impacto, "⚪")
+
+            linha = f"{emoji} {hora_fmt} | {bandeira} {evento}"
+            if est:
+                linha += f" | Est: {est}"
+            if prev:
+                linha += f" | Ant: {prev}"
+            linhas.append(linha)
+
+        return "\n".join(linhas)
+
+    except Exception as e:
+        return f"⚠️ Erro ao buscar calendario: {str(e)}"
 
 
 def buscar_noticias():
@@ -84,10 +148,10 @@ def buscar_crypto():
         ativos = [("bitcoin", "BTC"), ("ethereum", "ETH"), ("solana", "SOL")]
         for key, simbolo in ativos:
             if key in data:
-                preco = data[key]["usd"]
+                preco    = data[key]["usd"]
                 variacao = data[key].get("usd_24h_change", 0)
-                emoji = "🟢" if variacao >= 0 else "🔴"
-                sinal = "+" if variacao >= 0 else ""
+                emoji    = "🟢" if variacao >= 0 else "🔴"
+                sinal    = "+" if variacao >= 0 else ""
                 linhas.append(f"{emoji} {simbolo}: US$ {preco:,.0f} ({sinal}{variacao:.2f}%)")
         return "\n".join(linhas) if linhas else "₿ Cotacoes crypto indisponiveis."
     except Exception:
@@ -96,7 +160,7 @@ def buscar_crypto():
 
 def buscar_forex():
     try:
-        url = "https://api.exchangerate-api.com/v4/latest/USD"
+        url  = "https://api.exchangerate-api.com/v4/latest/USD"
         data = requests.get(url, timeout=10).json()
         rates = data.get("rates", {})
         brl = rates.get("BRL")
@@ -111,13 +175,40 @@ def buscar_forex():
         return "💱 Cotacoes forex indisponiveis no momento."
 
 
-async def enviar_resumo():
-    bot = Bot(token=TOKEN)
+async def enviar_calendario():
+    """Envia o calendario economico do dia as 8h."""
+    bot       = Bot(token=TOKEN)
     data_hoje = datetime.now().strftime("%d/%m/%Y")
     dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
-    noticias = buscar_noticias()
-    crypto = buscar_crypto()
-    forex = buscar_forex()
+    eventos   = buscar_calendario_economico()
+
+    mensagem = f"""
+📅 *Calendario Economico — {data_hoje}*
+{dia_semana} — Eventos do Dia
+━━━━━━━━━━━━━━━━━
+🔴 Alto impacto  🟡 Medio impacto
+
+{eventos}
+━━━━━━━━━━━━━━━━━
+⚠️ Eventos de alto impacto podem gerar forte volatilidade
+➡️ Ajuste sua gestao de risco antes de operar
+_Fique atento aos horarios e opere com disciplina!_ 🎯
+"""
+    await bot.send_message(
+        chat_id=CALENDAR_CHAT_ID,
+        text=mensagem,
+        parse_mode="Markdown"
+    )
+    print(f"✅ Calendario enviado: {datetime.now()}")
+
+
+async def enviar_resumo():
+    bot        = Bot(token=TOKEN)
+    data_hoje  = datetime.now().strftime("%d/%m/%Y")
+    dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
+    noticias   = buscar_noticias()
+    crypto     = buscar_crypto()
+    forex      = buscar_forex()
     mensagem = f"""
 📢 *Bom dia, traders!*
 {dia_semana}, *{data_hoje}* - Resumo do mercado
@@ -142,11 +233,11 @@ _Boas operacoes! Disciplina acima de tudo._ 🎯
 
 
 async def enviar_indicacoes():
-    bot = Bot(token=TOKEN)
-    data_hoje = datetime.now().strftime("%d/%m/%Y")
+    bot        = Bot(token=TOKEN)
+    data_hoje  = datetime.now().strftime("%d/%m/%Y")
     dia_semana = ["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][datetime.now().weekday()]
     indicacoes = gerar_indicacoes(n=5)
-    lista = "\n".join(f"🔹 {ativo} (OTC)" for ativo in indicacoes)
+    lista      = "\n".join(f"🔹 {ativo} (OTC)" for ativo in indicacoes)
     mensagem = f"""
 🤖 *Indicacoes de Ativos - I.A.*
 {dia_semana}, *{data_hoje}* - Selecao do Dia
@@ -165,10 +256,11 @@ async def enviar_indicacoes():
 
 async def main():
     scheduler = AsyncIOScheduler(timezone="America/Sao_Paulo")
+    scheduler.add_job(enviar_calendario, "cron", hour=8,  minute=0)
     scheduler.add_job(enviar_resumo,     "cron", hour=9,  minute=0)
     scheduler.add_job(enviar_indicacoes, "cron", hour=12, minute=0)
     scheduler.start()
-    print("🤖 Bot rodando... 9h resumo | 12h indicacoes")
+    print("🤖 Bot rodando... 8h calendario | 9h resumo | 12h indicacoes")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
